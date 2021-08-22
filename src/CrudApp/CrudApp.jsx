@@ -3,18 +3,21 @@ import {uniqId} from './uniqid';
 import {Button} from './Button/Button';
 import {NoteItem} from './NoteItem/NoteItem';
 import {NotesList} from './NotesList/NotesList';
-import './css/CrudApp.css';
 import {serverRequest} from './Functions/serverRequest';
+import './css/CrudApp.css';
 
 export class CrudApp extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            textAreaValue: '',
             notes: [],
         }
         this.onDeleteNoteClick = this.onDeleteNoteClick.bind(this);
         this.updateNotesButton = this.updateNotesButton.bind(this);
+        this.handleTextAreaChange = this.handleTextAreaChange.bind(this);
         this.handleTextAreaValue = this.handleTextAreaValue.bind(this);
+        this.addNewNote = this.addNewNote.bind(this);
         this.addNoteButton = this.addNoteButton.bind(this);
     }
 
@@ -28,15 +31,8 @@ export class CrudApp extends React.Component {
         this.setState({notes: result});
     }
 
-    componentWillUnmount() {
-        window.removeEventListener('onClick', this.onDeleteNoteClick);
-        window.removeEventListener('onClick', this.updateNotesButton);
-        window.removeEventListener('onKeyDown', this.handleTextAreaValue);
-        window.removeEventListener('onClick', this.addNoteButton);
-    }
-
     async onDeleteNoteClick(e) {
-        const noteId = e.target.closest('.NoteItem').id;
+        const noteId = e.target.id;
         await serverRequest('DELETE', noteId, null);
         await this.componentUpdate();
     }
@@ -45,33 +41,35 @@ export class CrudApp extends React.Component {
         await this.componentUpdate();
     }
 
+    handleTextAreaChange(e) {
+        this.setState({textAreaValue: e.target.value});
+    }
+
     async handleTextAreaValue(e) {
         if (e.key === 'Enter') {
-            if (e.target.value.trim() === '') {
-                e.preventDefault();
-                e.target.value = '';
+            e.preventDefault();
+            if (this.state.textAreaValue.trim() === '') {
+                this.setState({textAreaValue: ''});
                 return;
             }
-            const textAreaValue = e.target.value.trim();
-            const obj = {
-                id: uniqId(),
-                content: textAreaValue,
-            };
-            await serverRequest('POST', null, obj)
-            await this.componentUpdate();
-            e.target.value = '';
+            await this.addNewNote();
+            e.target.blur();
         }
     }
 
-    async addNoteButton() {
-        const textAreaValue = document.querySelector('.NoteTextArea').value;
-        if (textAreaValue === '') return;
-        const event = {
-            key: 'Enter',
-            target: {value: textAreaValue}
+    async addNewNote() {
+        const obj = {
+            id: uniqId(),
+            content: this.state.textAreaValue.trim(),
         };
-        await this.handleTextAreaValue(event);
-        document.querySelector('.NoteTextArea').value = '';
+        await serverRequest('POST', null, obj)
+        await this.componentUpdate();
+        this.setState({textAreaValue: ''});
+    }
+
+    async addNoteButton() {
+        if (this.state.textAreaValue === '') return;
+        await this.addNewNote();
     }
 
     render() {
@@ -91,8 +89,13 @@ export class CrudApp extends React.Component {
                 </section>
                 <div className={'TextAreaBlock'}>
                     <label htmlFor={'noteTextArea'}>{'New Note'}</label>
-                    <textarea className={'NoteTextArea'} name={'NoteTextArea'} id={'noteTextArea'}
-                              onKeyDown={this.handleTextAreaValue} required={true}/>
+                    <textarea
+                        className={'NoteTextArea'}
+                        name={'NoteTextArea'} id={'noteTextArea'}
+                        value={this.state.textAreaValue}
+                        onChange={this.handleTextAreaChange}
+                        onKeyDown={this.handleTextAreaValue}
+                        required={true}/>
                     <Button className={'AddNoteButton'} handleClick={this.addNoteButton}>&#10148;</Button>
                 </div>
             </div>
